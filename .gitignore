@@ -1,0 +1,37 @@
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+
+# Python bytecode and tooling
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Application-generated data
+logs/
+uploads/
+chroma_store/
+*.sqlite3
+
+# Node / frontend artifacts
+node_modules/
+.next/
+npm-debug.log*
+
+# Local editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
