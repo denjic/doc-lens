@@ -1,0 +1,44 @@
+[
+  {
+    "question": "What was the total quarterly revenue?",
+    "relevant_chunk_ids": [],
+    "relevant_pages": [{ "source": "final_test_document.pdf", "page": 1 }],
+    "reference_answer": "The total quarterly revenue was $2,850,000.",
+    "metadata": { "category": "financial_highlights" }
+  },
+  {
+    "question": "What was the net operating income and the gross margin?",
+    "relevant_chunk_ids": [],
+    "relevant_pages": [{ "source": "final_test_document.pdf", "page": 1 }],
+    "reference_answer": "Net operating income was $620,000. Gross margin was 34.2%.",
+    "metadata": { "category": "financial_highlights" }
+  },
+  {
+    "question": "How much did warehouse throughput increase, and by how much did dock processing time drop?",
+    "relevant_chunk_ids": [],
+    "relevant_pages": [{ "source": "final_test_document.pdf", "page": 2 }],
+    "reference_answer": "Warehouse throughput increased 18%. Dock processing time dropped 22% after automated pallet scanning in Warehouse B.",
+    "metadata": { "category": "operations" }
+  },
+  {
+    "question": "What is the status and amount of invoice INV-1002?",
+    "relevant_chunk_ids": [],
+    "relevant_pages": [{ "source": "final_test_document.pdf", "page": 2 }],
+    "reference_answer": "INV-1002 is for Nova Retail, with an amount of $8,750. Its status is Paid.",
+    "metadata": { "category": "invoice_table" }
+  },
+  {
+    "question": "What is the total value of the pending invoices in the sample table?",
+    "relevant_chunk_ids": [],
+    "relevant_pages": [{ "source": "final_test_document.pdf", "page": 2 }],
+    "reference_answer": "The pending invoices total $28,300. This is INV-1001 at $12,400 plus INV-1003 at $15,900.",
+    "metadata": { "category": "invoice_table_multi_row" }
+  },
+  {
+    "question": "What sustainability target did the company set, and what is it investing in?",
+    "relevant_chunk_ids": [],
+    "relevant_pages": [{ "source": "final_test_document.pdf", "page": 3 }],
+    "reference_answer": "The company targets a 14% reduction in carbon emissions. It is investing in electric delivery vehicles for last-mile service.",
+    "metadata": { "category": "strategic_initiatives" }
+  }
+]
