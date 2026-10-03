@@ -1,5 +1,5 @@
 """
-Enterprise Document Intelligence Agent
+DocLens - Enterprise Document Intelligence Agent
 ======================================
 CLI entry point. Supports three modes:
 
@@ -9,7 +9,7 @@ CLI entry point. Supports three modes:
 
 Environment
 -----------
-  ANTHROPIC_API_KEY  — required for query / eval modes
+  GROQ_API_KEY  — required for query / eval modes
   Copy .env.example to .env and fill in your key.
 
 Quick demo (no real PDFs needed)
@@ -32,7 +32,7 @@ from rag.prompt_manager import PromptManager
 from utils.logger import get_logger
 
 console = Console()
-logger  = get_logger("main")
+logger = get_logger("main")
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -42,7 +42,8 @@ def _print_response(resp) -> None:
 
 
 def _print_aggregate(agg: dict) -> None:
-    table = Table(title="Evaluation Results", show_header=True, header_style="bold cyan")
+    table = Table(title="Evaluation Results",
+                  show_header=True, header_style="bold cyan")
     table.add_column("Metric", style="cyan")
     table.add_column("Value",  style="green")
     for k, v in agg.items():
@@ -54,23 +55,26 @@ def _print_aggregate(agg: dict) -> None:
 
 def cmd_index(args) -> None:
     pipeline = RAGPipeline(prompt_version=args.prompt)
-    path     = Path(args.path)
+    path = Path(args.path)
 
     if path.is_dir():
         results = pipeline.index_directory(path)
-        total   = sum(v for v in results.values() if v > 0)
-        console.print(f"\n✅  Indexed [bold]{total}[/bold] chunks from {len(results)} PDFs.")
+        total = sum(v for v in results.values() if v > 0)
+        console.print(
+            f"\n✅  Indexed [bold]{total}[/bold] chunks from {len(results)} PDFs.")
     elif path.is_file() and path.suffix.lower() == ".pdf":
         count = pipeline.index_document(path)
-        console.print(f"\n✅  Indexed [bold]{count}[/bold] chunks from {path.name}")
+        console.print(
+            f"\n✅  Indexed [bold]{count}[/bold] chunks from {path.name}")
     else:
-        console.print(f"[red]Path not found or not a PDF/directory: {path}[/red]")
+        console.print(
+            f"[red]Path not found or not a PDF/directory: {path}[/red]")
         sys.exit(1)
 
 
 def cmd_query(args) -> None:
     pipeline = RAGPipeline(prompt_version=args.prompt)
-    resp     = pipeline.query(args.q)
+    resp = pipeline.query(args.q)
     _print_response(resp)
 
 
@@ -83,18 +87,18 @@ def cmd_eval(args) -> None:
     raw_cases = json.loads(dataset_path.read_text())
     eval_cases = [
         EvalCase(
-            question           = c["question"],
-            relevant_chunk_ids = c.get("relevant_chunk_ids", []),
-            reference_answer   = c.get("reference_answer", ""),
+            question=c["question"],
+            relevant_chunk_ids=c.get("relevant_chunk_ids", []),
+            reference_answer=c.get("reference_answer", ""),
         )
         for c in raw_cases
     ]
 
-    pipeline  = RAGPipeline(prompt_version=args.prompt)
+    pipeline = RAGPipeline(prompt_version=args.prompt)
     evaluator = Evaluator()
-    results   = evaluator.evaluate_dataset(eval_cases, pipeline)
-    agg       = evaluator.aggregate(results)
-    report    = evaluator.save_report(results, args.run_name)
+    results = evaluator.evaluate_dataset(eval_cases, pipeline)
+    agg = evaluator.aggregate(results)
+    report = evaluator.save_report(results, args.run_name)
 
     _print_aggregate(agg)
     console.print(f"\nFull report → [bold]{report}[/bold]")
@@ -116,7 +120,8 @@ def cmd_compare(args) -> None:
     for metric, vals in diff.items():
         delta = vals["delta"]
         delta_str = f"+{delta:.4f}" if delta > 0 else f"{delta:.4f}"
-        table.add_row(metric, str(vals[args.run_a]), str(vals[args.run_b]), delta_str)
+        table.add_row(metric, str(vals[args.run_a]), str(
+            vals[args.run_b]), delta_str)
     console.print(table)
 
 
@@ -132,7 +137,7 @@ def cmd_demo(args) -> None:
     from vector_store.chroma_store import ChromaStore
 
     embedder = Embedder()
-    store    = ChromaStore()
+    store = ChromaStore()
 
     # Synthetic invoice document
     synthetic_text = (
@@ -153,15 +158,15 @@ def cmd_demo(args) -> None:
 
     # Build a single synthetic chunk
     chunk = Chunk(
-        id             = "demo_chunk_001",
-        text           = "[Source: demo_invoice.pdf | Page: 1]\n" + synthetic_text,
-        embedding_text = synthetic_text,
-        source         = "demo_invoice.pdf",
-        page_num       = 1,
-        chunk_index    = 0,
-        char_start     = 0,
-        char_end       = len(synthetic_text),
-        metadata       = {
+        id="demo_chunk_001",
+        text="[Source: demo_invoice.pdf | Page: 1]\n" + synthetic_text,
+        embedding_text=synthetic_text,
+        source="demo_invoice.pdf",
+        page_num=1,
+        chunk_index=0,
+        char_start=0,
+        char_end=len(synthetic_text),
+        metadata={
             "source":   "demo_invoice.pdf",
             "page_num": 1,
             "title":    "Demo Invoice",
@@ -196,14 +201,15 @@ def cmd_demo(args) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Enterprise Document Intelligence Agent",
+        description="DocLens — Enterprise Document Intelligence Agent",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
     # index
     p_index = sub.add_parser("index", help="Index PDF(s) into ChromaDB")
-    p_index.add_argument("--path",   required=True, help="PDF file or directory of PDFs")
+    p_index.add_argument("--path",   required=True,
+                         help="PDF file or directory of PDFs")
     p_index.add_argument("--prompt", default=ACTIVE_PROMPT_VERSION)
 
     # query
@@ -213,7 +219,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     # eval
     p_eval = sub.add_parser("eval", help="Evaluate on a JSON dataset")
-    p_eval.add_argument("--dataset",  required=True, help="Path to eval JSON file")
+    p_eval.add_argument("--dataset",  required=True,
+                        help="Path to eval JSON file")
     p_eval.add_argument("--run-name", dest="run_name", default="eval_run",
                         help="Name for the saved report")
     p_eval.add_argument("--prompt",   default=ACTIVE_PROMPT_VERSION)
@@ -231,7 +238,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     parser = build_parser()
-    args   = parser.parse_args()
+    args = parser.parse_args()
 
     commands = {
         "index":   cmd_index,

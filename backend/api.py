@@ -38,7 +38,7 @@ logger = get_logger("api")
 
 # ── App factory ────────────────────────────────────────────────────────────────
 app = FastAPI(
-    title="Enterprise Document Intelligence Agent",
+    title="DocLens — Enterprise Document Intelligence Agent",
     description=(
         "RAG pipeline backed by ChromaDB + openai/gpt-oss-120b via Groq. "
         "Upload PDFs, ask questions, run evaluations."

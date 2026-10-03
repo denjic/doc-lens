@@ -104,7 +104,7 @@ export default function CommandCenter() {
       <aside className={`sidebar ${sidebarOpen ? "is-open" : "is-collapsed"}`}>
         <div className="brand-row">
           <div className="brand-mark"><span /><span /><span /></div>
-          <div className="brand-name">DocIntel</div>
+          <div className="brand-name">DocLens</div>
           <button className="icon-button desktop-only" onClick={() => setSidebarOpen(false)} aria-label="Collapse navigation" title="Collapse navigation"><PanelLeftClose size={17} /></button>
         </div>
         <nav className="navigation" aria-label="Primary navigation">

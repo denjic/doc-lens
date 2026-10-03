@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "DocIntel",
+  title: "DocLens",
   description: "Enterprise document intelligence workspace",
 };
 
