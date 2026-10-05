@@ -38,6 +38,7 @@ async def run_evaluation(req: EvalRequest, pipeline: RAGPipeline = Depends(get_p
         CoreEvalCase(
             question=c.question,
             relevant_chunk_ids=c.relevant_chunk_ids,
+            relevant_pages=c.relevant_pages,
             reference_answer=c.reference_answer,
         )
         for c in req.cases
@@ -54,7 +55,12 @@ async def run_evaluation(req: EvalRequest, pipeline: RAGPipeline = Depends(get_p
                 rerank_top_k=req.rerank_top_k,
                 use_mmr=req.use_mmr,
             )
-            result = evaluator.evaluate(resp, case.relevant_chunk_ids, case.reference_answer)
+            result = evaluator.evaluate(
+                resp,
+                case.relevant_chunk_ids,
+                case.reference_answer,
+                case.relevant_pages,
+            )
             results.append(result)
         except Exception as exc:
             logger.error(f"Eval case failed '{case.question[:50]}': {exc}")
@@ -77,6 +83,8 @@ async def run_evaluation(req: EvalRequest, pipeline: RAGPipeline = Depends(get_p
                 rouge_l=r.rouge_l,
                 faithfulness=r.faithfulness,
                 latency_sec=r.latency_sec,
+                tokens_used=r.tokens_used,
+                token_cost_usd=r.token_cost_usd,
                 answer=r.answer,
                 retrieved_ids=r.retrieved_ids,
             )

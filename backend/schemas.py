@@ -58,6 +58,7 @@ class QueryResponse(BaseModel):
 class EvalCase(BaseModel):
     question:            str
     relevant_chunk_ids:  list[str] = []
+    relevant_pages:      list[dict] = []
     reference_answer:    str       = ""
 
 class EvalRequest(BaseModel):
@@ -76,6 +77,8 @@ class EvalCaseResult(BaseModel):
     rouge_l:        float
     faithfulness:   float
     latency_sec:    float
+    tokens_used:    int
+    token_cost_usd: float
     answer:         str
     retrieved_ids:  list[str]
 
@@ -87,6 +90,8 @@ class EvalAggregate(BaseModel):
     rouge_l:        float
     faithfulness:   float
     avg_latency_sec:float
+    total_tokens:    int
+    total_cost_usd:  float
     prompt_version: str
 
 class EvalResponse(BaseModel):

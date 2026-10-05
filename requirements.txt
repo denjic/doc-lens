@@ -20,3 +20,6 @@ requests>=2.32.0
 
 # Logging
 rich>=13.7.0
+
+# Testing
+pytest>=8.0.0

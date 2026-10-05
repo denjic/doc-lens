@@ -89,6 +89,7 @@ def cmd_eval(args) -> None:
         EvalCase(
             question=c["question"],
             relevant_chunk_ids=c.get("relevant_chunk_ids", []),
+            relevant_pages=c.get("relevant_pages", []),
             reference_answer=c.get("reference_answer", ""),
         )
         for c in raw_cases

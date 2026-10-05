@@ -39,10 +39,12 @@ MMR_LAMBDA = 0.6
 # ── LLM (Groq)
 # ────────────────────────────────────────────────
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-LLM_MODEL = "gpt-oss-120b"
+LLM_MODEL = "openai/gpt-oss-120b"
 LLM_MAX_TOKENS = 1024
 LLM_TEMPERATURE = 0.0
 GROQ_TPM_LIMIT = 6_000
+LLM_INPUT_COST_PER_1M_USD = float(os.getenv("LLM_INPUT_COST_PER_1M_USD", "0"))
+LLM_OUTPUT_COST_PER_1M_USD = float(os.getenv("LLM_OUTPUT_COST_PER_1M_USD", "0"))
 
 # ── Prompt versioning ─────────────────────────────────────────────────────────
 ACTIVE_PROMPT_VERSION = "v2"
@@ -53,4 +55,7 @@ API_PORT = int(os.getenv("PORT", os.getenv("API_PORT", "8000")))
 API_BASE_URL = f"http://{API_HOST}:{API_PORT}"
 
 # ── Evaluation ────────────────────────────────────────────────────────────────
-EVAL_METRICS = ["precision_at_k", "mrr", "rouge_l", "faithfulness"]
+EVAL_METRICS = [
+    "precision_at_k", "recall_at_k", "mrr", "rouge_l", "faithfulness",
+    "avg_latency_sec", "total_tokens", "total_cost_usd",
+]

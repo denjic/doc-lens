@@ -12,8 +12,8 @@ Retrieval Quality
 Response Quality
 ----------------
 - ROUGE-L      : longest-common-subsequence overlap with reference answer
-- Faithfulness : heuristic — does the answer cite the retrieved chunks?
-  (In production replace this with an LLM-judge call.)
+- Faithfulness : citation-source overlap — what fraction of retrieved chunk
+  sources are cited in the answer? This is a heuristic, not an LLM judge.
 
 Usage
 -----
@@ -50,7 +50,8 @@ _ROUGE = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=True)
 class EvalCase:
     """A single ground-truth evaluation case."""
     question:            str
-    relevant_chunk_ids:  list[str]          # set of chunk IDs that are relevant
+    relevant_chunk_ids:  list[str] = field(default_factory=list)
+    relevant_pages:      list[dict] = field(default_factory=list)
     reference_answer:    str = ""           # optional reference answer
     metadata:            dict = field(default_factory=dict)
 
@@ -65,6 +66,8 @@ class EvalResult:
     rouge_l:          float
     faithfulness:     float      # 0.0 – 1.0
     latency_sec:      float
+    tokens_used:     int
+    token_cost_usd:  float
     prompt_version:   str
     retrieved_ids:    list[str]
     answer:           str
@@ -80,14 +83,20 @@ class Evaluator:
         rag_response:        RagResponse,
         relevant_chunk_ids:  Sequence[str],
         reference_answer:    str = "",
+        relevant_pages:      Sequence[dict] = (),
     ) -> EvalResult:
         """Compute all metrics for one RagResponse."""
         retrieved_ids = [c["id"] for c in rag_response.retrieved_chunks]
-        relevant_set  = set(relevant_chunk_ids)
 
-        precision = self._precision_at_k(retrieved_ids, relevant_set)
-        recall    = self._recall_at_k(retrieved_ids, relevant_set)
-        mrr       = self._mrr(retrieved_ids, relevant_set)
+        precision = self._precision_at_k(
+            rag_response.retrieved_chunks, relevant_chunk_ids, relevant_pages
+        )
+        recall    = self._recall_at_k(
+            rag_response.retrieved_chunks, relevant_chunk_ids, relevant_pages
+        )
+        mrr       = self._mrr(
+            rag_response.retrieved_chunks, relevant_chunk_ids, relevant_pages
+        )
         rouge_l   = self._rouge_l(rag_response.answer, reference_answer)
         faith     = self._faithfulness(rag_response)
 
@@ -99,6 +108,8 @@ class Evaluator:
             rouge_l        = rouge_l,
             faithfulness   = faith,
             latency_sec    = rag_response.latency_sec,
+            tokens_used    = rag_response.tokens_used,
+            token_cost_usd = rag_response.token_cost_usd,
             prompt_version = rag_response.prompt_version,
             retrieved_ids  = retrieved_ids,
             answer         = rag_response.answer,
@@ -122,7 +133,12 @@ class Evaluator:
         for case in eval_cases:
             logger.info(f"Evaluating: '{case.question[:70]}'")
             resp   = pipeline.query(case.question)
-            result = self.evaluate(resp, case.relevant_chunk_ids, case.reference_answer)
+            result = self.evaluate(
+                resp,
+                case.relevant_chunk_ids,
+                case.reference_answer,
+                case.relevant_pages,
+            )
             results.append(result)
         return results
 
@@ -145,6 +161,8 @@ class Evaluator:
             "rouge_l":        round(mean("rouge_l"), 4),
             "faithfulness":   round(mean("faithfulness"), 4),
             "avg_latency_sec":round(mean("latency_sec"), 3),
+            "total_tokens":    sum(r.tokens_used for r in results),
+            "total_cost_usd":  round(sum(r.token_cost_usd for r in results), 6),
             "prompt_version": results[0].prompt_version if results else "N/A",
         }
 
@@ -154,6 +172,7 @@ class Evaluator:
             "run_name":  run_name,
             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "aggregate": self.aggregate(results),
+            "prompt_version": results[0].prompt_version if results else "N/A",
             "details": [
                 {
                     "question":       r.question,
@@ -163,6 +182,8 @@ class Evaluator:
                     "rouge_l":        r.rouge_l,
                     "faithfulness":   r.faithfulness,
                     "latency_sec":    r.latency_sec,
+                    "tokens_used":    r.tokens_used,
+                    "token_cost_usd": r.token_cost_usd,
                     "prompt_version": r.prompt_version,
                     "retrieved_ids":  r.retrieved_ids,
                     "answer":         r.answer,
@@ -179,7 +200,10 @@ class Evaluator:
         """Load two saved reports and diff their aggregate metrics."""
         a = json.loads((EVAL_DIR / f"{run_a}.json").read_text())["aggregate"]
         b = json.loads((EVAL_DIR / f"{run_b}.json").read_text())["aggregate"]
-        metrics = ["precision_at_k", "recall_at_k", "mrr", "rouge_l", "faithfulness"]
+        metrics = [
+            "precision_at_k", "recall_at_k", "mrr", "rouge_l", "faithfulness",
+            "avg_latency_sec", "total_tokens", "total_cost_usd",
+        ]
         return {
             m: {
                 run_a: a.get(m),
@@ -192,23 +216,57 @@ class Evaluator:
     # ── Metric implementations ──────────────────────────────────────────────────
 
     @staticmethod
-    def _precision_at_k(retrieved: list[str], relevant: set[str]) -> float:
+    def _is_relevant(chunk: dict, relevant_ids: set[str],
+                     relevant_pages: set[tuple[str, int]]) -> bool:
+        metadata = chunk.get("metadata", {})
+        page = (metadata.get("source"), metadata.get("page_num"))
+        return chunk.get("id") in relevant_ids or page in relevant_pages
+
+    @classmethod
+    def _precision_at_k(
+        cls,
+        retrieved: list[dict],
+        relevant_ids: Sequence[str],
+        relevant_pages: Sequence[dict],
+    ) -> float:
         if not retrieved:
             return 0.0
-        hits = sum(1 for r in retrieved if r in relevant)
+        ids = set(relevant_ids)
+        pages = {(p.get("source"), int(p["page"])) for p in relevant_pages}
+        hits = sum(1 for chunk in retrieved if cls._is_relevant(chunk, ids, pages))
         return hits / len(retrieved)
 
-    @staticmethod
-    def _recall_at_k(retrieved: list[str], relevant: set[str]) -> float:
-        if not relevant:
+    @classmethod
+    def _recall_at_k(
+        cls,
+        retrieved: list[dict],
+        relevant_ids: Sequence[str],
+        relevant_pages: Sequence[dict],
+    ) -> float:
+        ids = set(relevant_ids)
+        pages = {(p.get("source"), int(p["page"])) for p in relevant_pages}
+        if not ids and not pages:
             return 1.0
-        hits = sum(1 for r in retrieved if r in relevant)
-        return hits / len(relevant)
+        matched_ids = {chunk["id"] for chunk in retrieved if chunk.get("id") in ids}
+        matched_pages = {
+            (chunk.get("metadata", {}).get("source"),
+             chunk.get("metadata", {}).get("page_num"))
+            for chunk in retrieved
+            if cls._is_relevant(chunk, set(), pages)
+        }
+        return (len(matched_ids) + len(matched_pages)) / (len(ids) + len(pages))
 
-    @staticmethod
-    def _mrr(retrieved: list[str], relevant: set[str]) -> float:
-        for rank, chunk_id in enumerate(retrieved, start=1):
-            if chunk_id in relevant:
+    @classmethod
+    def _mrr(
+        cls,
+        retrieved: list[dict],
+        relevant_ids: Sequence[str],
+        relevant_pages: Sequence[dict],
+    ) -> float:
+        ids = set(relevant_ids)
+        pages = {(p.get("source"), int(p["page"])) for p in relevant_pages}
+        for rank, chunk in enumerate(retrieved, start=1):
+            if cls._is_relevant(chunk, ids, pages):
                 return 1.0 / rank
         return 0.0
 
@@ -222,12 +280,8 @@ class Evaluator:
     @staticmethod
     def _faithfulness(resp: RagResponse) -> float:
         """
-        Heuristic faithfulness: what fraction of retrieved chunk sources are
-        cited in the answer?
-
-        In production, replace with an LLM judge:
-            "Given this context and answer, is every claim in the answer
-             supported by the context? Score 0–1."
+        Citation-source overlap: the fraction of retrieved chunk sources that
+        are cited in the answer. This is a heuristic, not an LLM judge.
         """
         if not resp.retrieved_chunks:
             return 0.0

@@ -23,6 +23,8 @@ from config import (
     RERANK_TOP_K,
     TOP_K,
     GROQ_TPM_LIMIT,
+    LLM_INPUT_COST_PER_1M_USD,
+    LLM_OUTPUT_COST_PER_1M_USD,
 )
 from embeddings.embedder import Embedder
 from ingestion.chunker import SemanticChunker
@@ -43,6 +45,9 @@ class RagResponse:
     latency_sec:       float
     model:             str
     tokens_used:       int = 0
+    prompt_tokens:     int = 0
+    completion_tokens: int = 0
+    token_cost_usd:    float = 0.0
     metadata:          dict = field(default_factory=dict)
 
     def __str__(self) -> str:
@@ -139,14 +144,21 @@ class RAGPipeline:
         )
 
         answer = response.choices[0].message.content
-        tokens_used = (response.usage.prompt_tokens or 0) + \
-            (response.usage.completion_tokens or 0)
+        prompt_tokens = response.usage.prompt_tokens or 0
+        completion_tokens = response.usage.completion_tokens or 0
+        tokens_used = prompt_tokens + completion_tokens
+        token_cost_usd = (
+            prompt_tokens * LLM_INPUT_COST_PER_1M_USD
+            + completion_tokens * LLM_OUTPUT_COST_PER_1M_USD
+        ) / 1_000_000
         latency = time.perf_counter() - t0
 
         return RagResponse(
             query=question, answer=answer, retrieved_chunks=chunks,
             prompt_version=self.prompt_manager.version,
             latency_sec=latency, model=LLM_MODEL, tokens_used=tokens_used,
+            prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
+            token_cost_usd=token_cost_usd,
         )
 
     def query_batch(self, questions: list[str], **kw: Any) -> list[RagResponse]:
